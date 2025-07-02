@@ -1,0 +1,24 @@
+# Auto normalize text files (recommended for cross-platform teams)
+* text=auto
+
+# Specific file types to always use LF (Unix-style)
+*.js     text eol=lf
+*.ts     text eol=lf
+*.tsx    text eol=lf
+*.json   text eol=lf
+*.env*   text eol=lf
+*.md     text eol=lf
+*.html   text eol=lf
+*.css    text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+
+# Binary files should be left untouched
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary

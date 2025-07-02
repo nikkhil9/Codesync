@@ -1,5 +1,6 @@
 import { CODING_QUESTIONS, LANGUAGES } from "@/constants";
 import { useEffect, useState } from "react";
+import TypingSpeedCalculator from "./TypingSpeedCalculator";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -25,55 +26,63 @@ import {
   LightbulbIcon,
 } from "lucide-react";
 import Editor from "@monaco-editor/react";
-
 import { useQuery, useMutation } from "convex/react";
-// Update the import path below if your api file is located elsewhere
 import { api } from "../../convex/_generated/api";
+const SAMPLE_TEXTS = [
+  "The quick brown fox jumps over the lazy dog.",
+  "Typing practice improves both speed and accuracy over time.",
+  "Every developer should learn how to debug efficiently.",
+  "React makes it painless to create interactive UIs.",
+  "Short sentences are best for testing typing speed.",
+];
+
 
 function CodeEditor() {
-  const [selectedQuestion, setSelectedQuestion] = useState(
-    CODING_QUESTIONS[0]
-  );
-  const [language, setLanguage] = useState<"javascript" | "python" | "java">(
-    LANGUAGES[0].id
-  );
+  const [selectedQuestion, setSelectedQuestion] = useState(CODING_QUESTIONS[0]);
+  const [language, setLanguage] = useState<"javascript" | "python" | "java" | "notepad">(LANGUAGES[0].id as any);
+  const [code, setCode] = useState("");
+   const getRandomText = () =>
+  SAMPLE_TEXTS[Math.floor(Math.random() * SAMPLE_TEXTS.length)];
+ const [originalText, setOriginalText] = useState(getRandomText());
 
-  const sessionId = "demo-session"; // Replace this with dynamic streamCallId later
+ 
 
+
+  const sessionId = "demo-session";
   const getCode = useQuery(api.code.getCode, { sessionId });
   const updateCode = useMutation(api.code.updateCode);
 
-  const [code, setCode] = useState(
-    selectedQuestion.starterCode[language]
-  );
-
-  // Update code when selectedQuestion/language changes
   const handleQuestionChange = (questionId: string) => {
     const question = CODING_QUESTIONS.find((q) => q.id === questionId)!;
     setSelectedQuestion(question);
-    const defaultCode = question.starterCode[language];
-    setCode(defaultCode);
-    updateCode({ sessionId, code: defaultCode, language });
+    if (language !== "notepad") {
+      const defaultCode = question.starterCode[language];
+      setCode(defaultCode);
+      updateCode({ sessionId, code: defaultCode, language });
+    } else {
+      setCode("");
+    }
   };
 
-  const handleLanguageChange = (
-    newLanguage: "javascript" | "python" | "java"
-  ) => {
+  const handleLanguageChange = (newLanguage: "javascript" | "python" | "java" | "notepad") => {
     setLanguage(newLanguage);
-    const defaultCode = selectedQuestion.starterCode[newLanguage];
-    setCode(defaultCode);
-    updateCode({ sessionId, code: defaultCode, language: newLanguage });
+    if (newLanguage === "notepad") {
+      setCode("");
+    } else {
+      const defaultCode = selectedQuestion.starterCode[newLanguage];
+      setCode(defaultCode);
+      updateCode({ sessionId, code: defaultCode, language: newLanguage });
+    }
   };
 
-  // Fetch from Convex
   useEffect(() => {
-    if (getCode?.code) {
+    if (language !== "notepad" && getCode?.code) {
       setCode(getCode.code);
     }
-  }, [getCode]);
+  }, [getCode, language]);
 
-  // Debounced DB sync
   useEffect(() => {
+    if (language === "notepad") return;
     const timeout = setTimeout(() => {
       updateCode({ sessionId, code, language });
     }, 500);
@@ -81,13 +90,11 @@ function CodeEditor() {
   }, [code, language]);
 
   return (
-    <ResizablePanelGroup direction="vertical" className="min-h-[calc-100vh-4rem-1px]">
-      {/* QUESTION SECTION */}
+    <ResizablePanelGroup direction="vertical" className="min-h-[calc(100vh-4rem-1px)]">
       <ResizablePanel>
         <ScrollArea className="h-full">
           <div className="p-6">
             <div className="max-w-4xl mx-auto space-y-6">
-              {/* HEADER */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -122,16 +129,16 @@ function CodeEditor() {
                             alt={language}
                             className="w-5 h-5 object-contain"
                           />
-                          {LANGUAGES.find((l) => l.id === language)?.name}
+                          {LANGUAGES.find((l) => l.id === language)?.name || "Notepad"}
                         </div>
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {LANGUAGES.map((lang) => (
+                      {[...LANGUAGES, { id: "notepad", name: "Notepad", icon: "/notepad.png" }].map((lang) => (
                         <SelectItem key={lang.id} value={lang.id}>
                           <div className="flex items-center gap-2">
                             <img
-                              src={`/${lang.id}.png`}
+                              src={lang.icon}
                               alt={lang.name}
                               className="w-5 h-5 object-contain"
                             />
@@ -144,7 +151,6 @@ function CodeEditor() {
                 </div>
               </div>
 
-              {/* PROBLEM DESCRIPTION */}
               <Card>
                 <CardHeader className="flex flex-row items-center gap-2">
                   <BookIcon className="h-5 w-5 text-primary/80" />
@@ -157,7 +163,6 @@ function CodeEditor() {
                 </CardContent>
               </Card>
 
-              {/* EXAMPLES */}
               <Card>
                 <CardHeader className="flex flex-row items-center gap-2">
                   <LightbulbIcon className="h-5 w-5 text-yellow-500" />
@@ -189,7 +194,6 @@ function CodeEditor() {
                 </CardContent>
               </Card>
 
-              {/* CONSTRAINTS */}
               {selectedQuestion.constraints && (
                 <Card>
                   <CardHeader className="flex flex-row items-center gap-2">
@@ -209,33 +213,78 @@ function CodeEditor() {
               )}
             </div>
           </div>
-          <ScrollBar />
         </ScrollArea>
       </ResizablePanel>
 
       <ResizableHandle withHandle />
 
-      {/* CODE EDITOR SECTION */}
       <ResizablePanel defaultSize={60} maxSize={100}>
-        <div className="h-full relative">
-          <Editor
-            height={"100%"}
-            language={language}
-            theme="vs-dark"
-            value={code}
-            onChange={(value) => setCode(value || "")}
-            options={{
-              minimap: { enabled: false },
-              fontSize: 18,
-              lineNumbers: "on",
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              padding: { top: 16, bottom: 16 },
-              wordWrap: "on",
-              wrappingIndent: "indent",
-            }}
-          />
-        </div>
+       <div className="h-full flex flex-col">
+  {language === "notepad" ? (
+    <>
+      {/* Reference Text */}
+      <div className="p-4 bg-muted border-b space-y-2">
+        <label className="block font-medium text-sm">Reference Text:</label>
+        <textarea
+          className="w-full border rounded p-2 text-sm font-mono"
+          rows={3}
+          value={originalText}
+          onChange={(e) => setOriginalText(e.target.value)}
+          placeholder="Enter the reference text to type..."
+        />
+        <button
+          className="mt-2 px-3 py-1 bg-primary text-white rounded text-sm"
+          onClick={() => setOriginalText(getRandomText())}
+        >
+          🎲 Random Text
+        </button>
+      </div>
+
+      {/* Notepad typing area */}
+      <div className="flex-1 overflow-y-auto">
+        <textarea
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="Start typing here..."
+          className="w-full h-full resize-none bg-black text-white p-4 font-mono text-base"
+          onKeyDown={(e) => {
+            if (e.key === "Backspace") {
+              e.preventDefault();
+            }
+          }}
+        />
+      </div>
+
+      {/* Speed, Accuracy, Timer, Reset */}
+      <div className="bg-muted p-4 border-t text-sm">
+        <TypingSpeedCalculator
+          typedText={code}
+          originalText={originalText}
+          onReset={() => setCode("")}
+        />
+      </div>
+    </>
+  ) : (
+    <Editor
+      height="100%"
+      language={language}
+      theme="vs-dark"
+      value={code}
+      onChange={(value) => setCode(value || "")}
+      options={{
+        minimap: { enabled: false },
+        fontSize: 18,
+        lineNumbers: "on",
+        scrollBeyondLastLine: false,
+        automaticLayout: true,
+        padding: { top: 16, bottom: 16 },
+        wordWrap: "on",
+        wrappingIndent: "indent",
+      }}
+    />
+  )}
+</div>
+
       </ResizablePanel>
     </ResizablePanelGroup>
   );
